@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sumando con Fichas Algebraicas</title>
+<style>
+  :root{
+    --navy:#1F2A6E;
+    --navy-dark:#141c4d;
+    --orange:#E67E22;
+    --orange-dark:#c96a15;
+    --paper:#FBFAF3;
+    --grid-line:#c9d6ea;
+    --ink:#2b2f3a;
+    --pos-x2:#3853C9;
+    --pos-x:#2E9E5B;
+    --pos-1:#F2C230;
+    --neg:#D9534A;
+    --ok:#2E9E5B;
+    --bad:#D9534A;
+    --u:34px;   /* lado de la unidad */
+    --xl:112px; /* longitud de x (no múltiplo de la unidad, a propósito) */
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:Arial, Helvetica, sans-serif;
+    background:#EDF0F7;
+    color:var(--ink);
+    -webkit-user-select:none; user-select:none;
+  }
+  header{
+    background:var(--navy);
+    color:#fff;
+    padding:14px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  }
+  header h1{font-size:1.25rem; letter-spacing:.3px;}
+  header h1 .ast{color:var(--orange); margin-right:6px;}
+  .hud{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .hud .pill{
+    background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25);
+    padding:5px 12px; border-radius:999px; font-size:.85rem; font-weight:bold;
+  }
+  .hud .pill span{color:#FFD27A;}
+  button{
+    font-family:inherit; font-weight:bold; border:none; border-radius:8px;
+    cursor:pointer; transition:transform .08s ease, background .15s ease;
+  }
+  button:active{transform:scale(.96);}
+  button:focus-visible{outline:3px solid var(--orange); outline-offset:2px;}
+  .btn-orange{background:var(--orange); color:#fff; padding:9px 16px; font-size:.9rem;}
+  .btn-orange:hover{background:var(--orange-dark);}
+  .btn-ghost{background:rgba(255,255,255,.15); color:#fff; padding:9px 14px; font-size:.9rem; border:1px solid rgba(255,255,255,.35);}
+  .btn-ghost:hover{background:rgba(255,255,255,.28);}
+
+  /* ---- Barra de niveles ---- */
+  .levels{
+    display:flex; gap:8px; align-items:center; padding:10px 20px; flex-wrap:wrap;
+    background:#fff; border-bottom:2px solid #dfe4f0;
+  }
+  .levels .lbl{font-size:.85rem; font-weight:bold; color:var(--navy);}
+  .lvl{
+    padding:7px 14px; border-radius:999px; font-size:.85rem;
+    background:#eef1f9; color:var(--navy); border:2px solid transparent;
+  }
+  .lvl.active{background:var(--navy); color:#fff; border-color:var(--orange);}
+
+  main{
+    max-width:1100px; margin:0 auto; padding:16px;
+    display:grid; grid-template-columns:1fr 190px; gap:14px;
+    grid-template-areas:
+      "poly poly"
+      "board tray"
+      "answer answer";
+  }
+
+  /* ---- Caja de los polinomios a sumar ---- */
+  .polybox{
+    grid-area:poly;
+    background:#fff; border:3px solid var(--navy); border-radius:12px;
+    padding:12px 18px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    box-shadow:0 3px 0 #d5dae8;
+  }
+  .polybox .tag{
+    background:var(--orange); color:#fff; font-size:.72rem; font-weight:bold;
+    padding:4px 10px; border-radius:999px; letter-spacing:.5px; white-space:nowrap;
+  }
+  .polybox .expr{font-size:1.35rem; font-weight:bold; color:var(--navy); letter-spacing:.5px;}
+  .polybox .expr sup{font-size:.75em;}
+
+  /* ---- Tablero (espacio para la operación) ---- */
+  .board-wrap{grid-area:board; position:relative;}
+  #board{
+    position:relative; height:460px; border:3px solid var(--navy); border-radius:12px;
+    background:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+      var(--paper);
+    background-size:17px 17px;
+    overflow:hidden;
+    touch-action:none;
+    box-shadow:0 3px 0 #d5dae8;
+  }
+  .board-caption{
+    position:absolute; top:8px; left:12px; font-size:.78rem; color:#8b93ab; pointer-events:none;
+    font-style:italic;
+  }
+  .count-line{
+    position:absolute; bottom:8px; left:12px; right:12px; font-size:.8rem; color:var(--navy);
+    background:rgba(255,255,255,.85); border-radius:8px; padding:4px 10px; display:none;
+    pointer-events:none; font-weight:bold;
+  }
+  .count-line.show{display:block;}
+
+  /* ---- Fichas ---- */
+  .tile{
+    position:absolute; display:flex; align-items:center; justify-content:center;
+    font-weight:bold; color:#fff; border-radius:6px;
+    border:2px solid rgba(0,0,0,.28);
+    box-shadow:2px 3px 5px rgba(20,28,77,.28);
+    cursor:grab; touch-action:none;
+    font-size:1rem;
+  }
+  .tile sup{font-size:.7em;}
+  .tile.dragging{cursor:grabbing; z-index:999; box-shadow:4px 7px 14px rgba(20,28,77,.4); opacity:.92;}
+  .t-x2{width:var(--xl); height:var(--xl); background:var(--pos-x2);}
+  .t-x{width:var(--u); height:var(--xl); background:var(--pos-x);}
+  .t-1{width:var(--u); height:var(--u); background:var(--pos-1); color:#5b4300; font-size:.85rem;}
+  .neg.t-x2, .neg.t-x, .neg.t-1{background:var(--neg); color:#fff; border-style:dashed; border-color:rgba(0,0,0,.35);}
+  .tile.poof{animation:poof .45s ease forwards; pointer-events:none;}
+  @keyframes poof{
+    0%{transform:scale(1) rotate(0deg); opacity:1;}
+    100%{transform:scale(1.6) rotate(14deg); opacity:0;}
+  }
+  .zeroflash{
+    position:absolute; z-index:1000; pointer-events:none;
+    font-weight:bold; color:var(--orange); font-size:1rem;
+    text-shadow:0 1px 0 #fff;
+    animation:rise .9s ease forwards;
+  }
+  @keyframes rise{
+    0%{transform:translateY(0); opacity:1;}
+    100%{transform:translateY(-42px); opacity:0;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .tile.poof{animation:none; opacity:0;}
+    .zeroflash{animation:none; opacity:0;}
+  }
+
+  /* ---- Bandeja de fichas ---- */
+  .tray{
+    grid-area:tray;
+    background:#fff; border:3px solid var(--navy); border-radius:12px; padding:12px;
+    display:flex; flex-direction:column; gap:10px; align-items:center;
+    box-shadow:0 3px 0 #d5dae8;
+  }
+  .tray h2{font-size:.8rem; color:var(--navy); text-align:center; letter-spacing:.4px;}
+  .tray .src-row{display:flex; gap:10px; align-items:flex-end; justify-content:center; flex-wrap:wrap;}
+  .src{
+    position:relative; display:flex; align-items:center; justify-content:center;
+    font-weight:bold; color:#fff; border-radius:6px;
+    border:2px solid rgba(0,0,0,.28); box-shadow:2px 3px 4px rgba(20,28,77,.25);
+    cursor:grab; touch-action:none;
+  }
+  .src sup{font-size:.7em;}
+  .s-x2{width:64px; height:64px; background:var(--pos-x2); font-size:.95rem;}
+  .s-x{width:22px; height:64px; background:var(--pos-x); font-size:.8rem;}
+  .s-1{width:24px; height:24px; background:var(--pos-1); color:#5b4300; font-size:.7rem;}
+  .src.neg{background:var(--neg) !important; color:#fff; border-style:dashed;}
+  .tray .hint{font-size:.72rem; color:#7a819a; text-align:center; line-height:1.35;}
+  .tray .divider{width:80%; border-top:2px dashed #dfe4f0;}
+  .tray-lbl{font-size:.72rem; font-weight:bold; color:var(--navy);}
+  .tray-lbl.negl{color:var(--neg);}
+
+  /* ---- Caja de la solución ---- */
+  .answer{
+    grid-area:answer;
+    background:#fff; border:3px solid var(--navy); border-radius:12px; padding:14px 18px;
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    box-shadow:0 3px 0 #d5dae8;
+  }
+  .answer .tag{
+    background:var(--navy); color:#fff; font-size:.72rem; font-weight:bold;
+    padding:4px 10px; border-radius:999px; letter-spacing:.5px; white-space:nowrap;
+  }
+  .answer .poly-inputs{display:flex; align-items:center; gap:6px; font-size:1.2rem; font-weight:bold; color:var(--navy); flex-wrap:wrap;}
+  .answer input{
+    width:64px; padding:8px 6px; font-size:1.1rem; font-weight:bold; text-align:center;
+    border:2px solid var(--navy); border-radius:8px; font-family:inherit; color:var(--ink);
+    background:#f6f8ff;
+  }
+  .answer input:focus{outline:3px solid var(--orange); outline-offset:1px;}
+  .feedback{
+    flex-basis:100%; font-size:.95rem; font-weight:bold; padding:8px 12px; border-radius:8px; display:none;
+  }
+  .feedback.ok{display:block; background:#e4f5ea; color:#1c6b3c; border:2px solid var(--ok);}
+  .feedback.bad{display:block; background:#fdeceb; color:#8f2620; border:2px solid var(--bad);}
+  .feedback.info{display:block; background:#fff4e3; color:#8a5410; border:2px solid var(--orange);}
+
+  /* ---- Modos y fases ---- */
+  .mode-switch{display:flex; border:2px solid var(--navy); border-radius:999px; overflow:hidden;}
+  .mode-switch button{border-radius:0; padding:7px 14px; font-size:.85rem; background:#fff; color:var(--navy);}
+  .mode-switch button.active{background:var(--orange); color:#fff;}
+  .phase-bar{
+    display:none; align-items:center; gap:10px; flex-wrap:wrap;
+    background:#fff; border:3px solid var(--navy); border-radius:12px;
+    padding:10px 14px; margin-bottom:10px; box-shadow:0 3px 0 #d5dae8;
+  }
+  .phase-bar.show{display:flex;}
+  .step{
+    display:flex; align-items:center; gap:8px; font-size:.85rem; font-weight:bold;
+    color:#9aa1b8; padding:5px 12px; border-radius:999px; background:#eef1f9;
+  }
+  .step .num{
+    width:22px; height:22px; border-radius:50%; background:#c8cede; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:.75rem;
+  }
+  .step.current{background:var(--navy); color:#fff;}
+  .step.current .num{background:var(--orange);}
+  .step.done{background:#e4f5ea; color:#1c6b3c;}
+  .step.done .num{background:var(--ok);}
+  .step-arrow{color:var(--navy); font-weight:bold;}
+  #btnVerify{margin-left:auto;}
+  .answer.locked{opacity:.45; pointer-events:none; filter:grayscale(.4);}
+  .locked-note{
+    grid-area:answer; margin-top:-6px; font-size:.8rem; color:#8a5410; font-weight:bold;
+    display:none;
+  }
+
+  /* ---- Modal instrucciones ---- */
+  .modal-bg{
+    position:fixed; inset:0; background:rgba(20,28,77,.55); display:none;
+    align-items:center; justify-content:center; padding:16px; z-index:2000;
+  }
+  .modal-bg.show{display:flex;}
+  .modal{
+    background:#fff; border-radius:14px; max-width:640px; width:100%;
+    max-height:88vh; overflow:auto; padding:22px 24px; border-top:8px solid var(--orange);
+  }
+  .modal h2{color:var(--navy); margin-bottom:10px;}
+  .modal h3{color:var(--orange-dark); font-size:.95rem; margin:14px 0 6px;}
+  .modal p, .modal li{font-size:.92rem; line-height:1.55;}
+  .modal ol{padding-left:20px;}
+  .modal .sizes{display:flex; gap:16px; align-items:flex-end; margin:10px 0; flex-wrap:wrap;}
+  .modal .size-item{text-align:center; font-size:.8rem; font-weight:bold; color:var(--navy);}
+  .modal .size-item .demo{margin:0 auto 5px; border-radius:5px; border:2px solid rgba(0,0,0,.25);}
+  .modal .close-row{text-align:right; margin-top:16px;}
+
+  @media (max-width:760px){
+    main{
+      grid-template-columns:1fr;
+      grid-template-areas:"poly" "tray" "board" "answer";
+    }
+    .tray{flex-direction:column;}
+    .tray .src-row{gap:14px;}
+    #board{height:400px;}
+    .polybox .expr{font-size:1.1rem;}
+  }
+  @media (max-width:520px){
+    .tile{font-size:.8rem;}
+    .t-1{font-size:.65rem;}
+    #board{height:62vh; min-height:340px;}
+    .board-caption{font-size:.68rem; right:12px;}
+    .answer input{width:54px;}
+    header h1{font-size:1.05rem;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="ast">*</span>Sumando con Fichas Algebraicas</h1>
+  <div class="hud">
+    <div class="pill">👤 <span id="studentPill">—</span></div>
+    <div class="pill">⭐ Puntos: <span id="score">0</span></div>
+    <div class="pill">🎯 Nivel: <span id="lvlProg">0/3</span></div>
+    <div class="pill">🔥 Racha: <span id="streak">0</span></div>
+    <div class="pill">✅ <span id="hits">0</span>/<span id="tries">0</span></div>
+    <button class="btn-ghost" id="btnHelp">❓ Cómo se juega</button>
+  </div>
+</header>
+
+<div class="levels">
+  <span class="lbl">Nivel:</span>
+  <button class="lvl active" data-lvl="1">1 · Positivos</button>
+  <button class="lvl" data-lvl="2">2 · Con negativos</button>
+  <button class="lvl" data-lvl="3">3 · Avanzado</button>
+  <span style="flex:1"></span>
+  <span class="lbl">Modo:</span>
+  <div class="mode-switch" role="group" aria-label="Modo de juego">
+    <button id="modeGuided" class="active">🧭 Guiado</button>
+    <button id="modeFree">🕊 Libre</button>
+  </div>
+  <button class="btn-orange" id="btnNew">🎲 Nuevo ejercicio</button>
+  <button class="lvl" id="btnCount" title="Muestra el conteo de fichas en el tablero">👁 Apoyo: conteo</button>
+</div>
+
+<main>
+  <!-- Polinomios a sumar -->
+  <div class="polybox">
+    <span class="tag" id="opTag">POLINOMIOS A SUMAR</span>
+    <span class="expr" id="exprBox"></span>
+  </div>
+
+  <!-- Espacio para realizar la operación -->
+  <div class="board-wrap">
+    <div class="phase-bar" id="phaseBar">
+      <div class="step current" id="step1"><span class="num">1</span> Representa los polinomios</div>
+      <span class="step-arrow">→</span>
+      <div class="step" id="step2"><span class="num">2</span> Simplifica y responde</div>
+      <button class="btn-orange" id="btnVerify">Verificar representación</button>
+    </div>
+    <div id="board">
+      <span class="board-caption">Espacio para realizar la operación — arrastra fichas desde la bandeja. Junta una ficha con su opuesta para formar un par nulo.</span>
+      <div class="count-line" id="countLine"></div>
+    </div>
+  </div>
+
+  <!-- Bandeja de fichas -->
+  <div class="tray">
+    <h2>FICHAS</h2>
+    <span class="tray-lbl">Positivas</span>
+    <div class="src-row">
+      <div class="src s-x2" data-base="x2" data-sign="1">x²</div>
+      <div class="src s-x" data-base="x" data-sign="1">x</div>
+      <div class="src s-1" data-base="1" data-sign="1">1</div>
+    </div>
+    <div class="divider"></div>
+    <span class="tray-lbl negl">Negativas</span>
+    <div class="src-row">
+      <div class="src s-x2 neg" data-base="x2" data-sign="-1">−x²</div>
+      <div class="src s-x neg" data-base="x" data-sign="-1">−x</div>
+      <div class="src s-1 neg" data-base="1" data-sign="-1">−1</div>
+    </div>
+    <div class="divider"></div>
+    <p class="hint">Arrastra al tablero para colocar.<br>Arrastra fuera del tablero para eliminar.</p>
+  </div>
+
+  <!-- Solución -->
+  <div class="answer">
+    <span class="tag">SOLUCIÓN</span>
+    <div class="poly-inputs">
+      <input type="number" id="inA" inputmode="numeric" aria-label="Coeficiente de x al cuadrado"> <span>x²&nbsp;+</span>
+      <input type="number" id="inB" inputmode="numeric" aria-label="Coeficiente de x"> <span>x&nbsp;+</span>
+      <input type="number" id="inC" inputmode="numeric" aria-label="Término independiente">
+    </div>
+    <button class="btn-orange" id="btnCheck">Comprobar</button>
+    <div class="feedback" id="fb"></div>
+  </div>
+</main>
+
+<!-- Modal de instrucciones -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h2>¿Cómo se juega?</h2>
+    <h3>¿Qué representa cada ficha? (¡el tamaño importa!)</h3>
+    <p>Cada ficha representa un <strong>área</strong>:</p>
+    <div class="sizes">
+      <div class="size-item">
+        <div class="demo" style="width:34px;height:34px;background:var(--pos-1);"></div>
+        1 × 1 = <strong>1</strong>
+      </div>
+      <div class="size-item">
+        <div class="demo" style="width:34px;height:112px;background:var(--pos-x);"></div>
+        1 × x = <strong>x</strong>
+      </div>
+      <div class="size-item">
+        <div class="demo" style="width:112px;height:112px;background:var(--pos-x2);"></div>
+        x × x = <strong>x²</strong>
+      </div>
+      <div class="size-item">
+        <div class="demo" style="width:112px;height:112px;background:var(--neg);border-style:dashed;"></div>
+        Rojas = <strong>negativas</strong>
+      </div>
+    </div>
+    <p>Observa que el lado <em>x</em> <strong>no</strong> es un número exacto de unidades: <em>x</em> es una cantidad desconocida, ¡por eso no podemos "medirla" con la ficha de 1!</p>
+    <h3>Pasos</h3>
+    <ol>
+      <li><strong>Fase 1 · Representa</strong> los dos polinomios colocando en el tablero las fichas de cada término (las rojas para los términos negativos). En <strong>modo guiado</strong>, pulsa <em>Verificar representación</em>: si es correcta ganas +5 puntos y pasas a la Fase 2.</li>
+      <li><strong>Fase 2 · Forma pares nulos:</strong> arrastra una ficha sobre su opuesta (por ejemplo, x² sobre −x²). Ambas desaparecen porque x² + (−x²) = 0.</li>
+      <li><strong>Cuenta</strong> las fichas que quedan y escribe el polinomio solución abajo. Si un término no aparece, escribe 0.</li>
+      <li>Pulsa <strong>Comprobar</strong>. Ganas puntos por cada acierto y por cada par nulo cancelado. 🔥</li>
+    </ol>
+    <h3>Los dos modos</h3>
+    <p><strong>🧭 Guiado:</strong> debes verificar tu representación antes de poder cancelar y responder (ideal para aprender).<br>
+    <strong>🕊 Libre:</strong> todo está disponible desde el inicio, tú decides el orden (ideal cuando ya dominas el material).</p>
+    <h3>¿Y la resta? (desde el Nivel 2)</h3>
+    <p><strong>Restar es sumar el opuesto:</strong> si el ejercicio es ( P ) − ( Q ), representa el segundo polinomio con <strong>todas sus fichas volteadas</strong> (las positivas se vuelven rojas y las rojas se vuelven positivas). Después el proceso es el mismo: juntar, cancelar pares nulos y contar.</p>
+    <h3>¿Cómo se gana?</h3>
+    <p>Superas cada nivel al lograr los ejercicios correctos que pide: <strong>Nivel 1 → 3</strong>, <strong>Nivel 2 → 4</strong>, <strong>Nivel 3 → 5</strong>. Al pasar de nivel ganas bono de puntos, y al completar los tres niveles… 🏆 ¡terminas el juego! Tu progreso aparece arriba en 🎯.</p>
+    <div class="close-row">
+      <button class="btn-orange" id="btnCloseModal">¡A jugar!</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de registro del estudiante -->
+<div class="modal-bg show" id="nameModal">
+  <div class="modal" style="max-width:420px; text-align:center;">
+    <h2>👋 ¡Bienvenido/a!</h2>
+    <p style="margin:10px 0;">Escribe tu <strong>nombre completo y grupo</strong> para registrar tu puntaje:</p>
+    <input type="text" id="inName" placeholder="Ej: Ana Pérez — 8.2" maxlength="60"
+      style="width:100%; padding:10px; font-size:1rem; border:2px solid var(--navy); border-radius:8px; font-family:inherit; text-align:center;">
+    <div class="close-row" style="text-align:center;">
+      <button class="btn-orange" id="btnStart">Comenzar 🚀</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de juego completado -->
+<div class="modal-bg" id="winModal">
+  <div class="modal" style="max-width:460px; text-align:center; border-top-color:var(--ok);">
+    <h2>🏆 ¡JUEGO COMPLETADO!</h2>
+    <p style="font-size:1.05rem; margin:8px 0;"><strong id="winName"></strong></p>
+    <p>Superaste los tres niveles de fichas algebraicas.</p>
+    <p style="font-size:1.6rem; font-weight:bold; color:var(--orange); margin:12px 0;">⭐ <span id="winScore">0</span> puntos</p>
+    <p style="color:#555;">Aciertos: <span id="winHits"></span></p>
+    <p style="font-size:.85rem; color:#7a819a; margin-top:8px;">Tu resultado quedó registrado. ¡Muéstraselo a tu profesor!</p>
+    <div class="close-row" style="text-align:center;">
+      <button class="btn-orange" id="btnReplay">🔁 Jugar de nuevo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Estado ----------
+  // ============================================================
+  // CONFIGURACIÓN: pega aquí la URL de tu App Web de Apps Script
+  // (Implementar > Nueva implementación > App web > Cualquier usuario)
+  // Si se deja vacía, el juego funciona igual pero no guarda registros.
+  // ============================================================
+  const SHEETS_URL = "";
+
+  const GOALS = {1:3, 2:4, 3:5}; // ejercicios correctos para superar cada nivel
+
+  const state = {
+    level: 1,
+    mode: "guiado",   // "guiado" | "libre"
+    phase: 1,         // 1 = representar, 2 = simplificar y responder
+    op: "suma",       // "suma" | "resta" (resta desde nivel 2)
+    student: "",
+    progress: {1:0, 2:0, 3:0},
+    finished: false,
+    score: 0, streak: 0, hits: 0, tries: 0,
+    ex: null,          // {a1,b1,c1,a2,b2,c2}
+    solved: false,
+    showCount: false,
+    tiles: new Map(),  // id -> {base, sign, el}
+    nextId: 1
+  };
+
+  const board = document.getElementById("board");
+  const exprBox = document.getElementById("exprBox");
+  const fb = document.getElementById("fb");
+  const countLine = document.getElementById("countLine");
+
+  const rnd = (min,max)=>Math.floor(Math.random()*(max-min+1))+min;
+  const rndNZ = (min,max)=>{let v=0; while(v===0) v=rnd(min,max); return v;};
+
+  // ---------- Generación de ejercicios ----------
+  function genExercise(){
+    let a1,b1,c1,a2,b2,c2;
+    if(state.level===1){
+      a1=rnd(1,2); b1=rnd(1,3); c1=rnd(1,3);
+      a2=rnd(0,2); b2=rnd(1,3); c2=rnd(1,3);
+      if(a2===0 && rnd(0,1)) a2=1;
+    } else if(state.level===2){
+      a1=rndNZ(-2,2); b1=rndNZ(-3,3); c1=rndNZ(-3,3);
+      a2=rndNZ(-2,2); b2=rndNZ(-3,3); c2=rndNZ(-3,3);
+      // garantizar al menos un par nulo posible
+      if(Math.sign(a1)===Math.sign(a2) && Math.sign(b1)===Math.sign(b2) && Math.sign(c1)===Math.sign(c2)){
+        b2 = -b2;
+      }
+    } else {
+      a1=rnd(-3,3); b1=rnd(-4,4); c1=rnd(-4,4);
+      a2=rnd(-3,3); b2=rnd(-4,4); c2=rnd(-4,4);
+      if(a1===0&&b1===0&&c1===0) b1=rndNZ(-4,4);
+      if(a2===0&&b2===0&&c2===0) c2=rndNZ(-4,4);
+    }
+    state.ex = {a1,b1,c1,a2,b2,c2};
+    state.op = (state.level>=2 && rnd(0,1)===1) ? "resta" : "suma";
+    state.solved = false;
+    const sep = state.op==="resta" ? "&nbsp;−&nbsp;" : "&nbsp;+&nbsp;";
+    exprBox.innerHTML = "( " + fmtPoly(a1,b1,c1) + " )" + sep + "( " + fmtPoly(a2,b2,c2) + " )";
+    document.getElementById("opTag").textContent = state.op==="resta" ? "POLINOMIOS A RESTAR" : "POLINOMIOS A SUMAR";
+    clearBoard();
+    ["inA","inB","inC"].forEach(id=>document.getElementById(id).value="");
+    hideFb();
+    updateCountLine();
+    updateProgressUI();
+    setPhase(state.mode==="guiado" ? 1 : 2);
+  }
+
+  // ---------- Modo guiado: fases ----------
+  function setPhase(p){
+    state.phase = p;
+    const bar = document.getElementById("phaseBar");
+    const s1 = document.getElementById("step1"), s2 = document.getElementById("step2");
+    const btnV = document.getElementById("btnVerify");
+    const answer = document.querySelector(".answer");
+    if(state.mode==="libre"){
+      bar.classList.remove("show");
+      answer.classList.remove("locked");
+      return;
+    }
+    bar.classList.add("show");
+    if(p===1){
+      s1.className = "step current"; s2.className = "step";
+      btnV.style.display = "";
+      answer.classList.add("locked");
+    } else {
+      s1.className = "step done"; s2.className = "step current";
+      btnV.style.display = "none";
+      answer.classList.remove("locked");
+    }
+  }
+
+  function targets(){
+    const {a1,b1,c1,a2,b2,c2} = state.ex;
+    const k = state.op==="resta" ? -1 : 1;
+    return {ta:a1+k*a2, tb:b1+k*b2, tc:c1+k*c2};
+  }
+
+  function expectedCounts(){
+    const {a1,b1,c1} = state.ex;
+    const k = state.op==="resta" ? -1 : 1; // restar = sumar el opuesto
+    const a2 = k*state.ex.a2, b2 = k*state.ex.b2, c2 = k*state.ex.c2;
+    const e = {x2:{p:0,n:0}, x:{p:0,n:0}, "1":{p:0,n:0}};
+    [[a1,"x2"],[a2,"x2"],[b1,"x"],[b2,"x"],[c1,"1"],[c2,"1"]].forEach(([v,base])=>{
+      if(v>0) e[base].p += v; else e[base].n += -v;
+    });
+    return e;
+  }
+
+  function verifyRepresentation(){
+    const exp = expectedCounts();
+    const got = boardCounts();
+    const wrong = [];
+    const names = {x2:"x²", x:"x", "1":"unidades"};
+    ["x2","x","1"].forEach(base=>{
+      if(exp[base].p!==got[base].p || exp[base].n!==got[base].n) wrong.push(names[base]);
+    });
+    if(state.tiles.size===0){
+      showFb("info","El tablero está vacío: coloca las fichas de los DOS polinomios.");
+      return;
+    }
+    if(wrong.length===0){
+      state.score += 5;
+      renderHud();
+      showFb("ok","✅ ¡Representación correcta! +5 puntos. Ahora forma los pares nulos y escribe la solución.");
+      setPhase(2);
+    } else {
+      let msg = "❌ Aún no coincide. Revisa las fichas de: " + wrong.join(", ") + ". Recuerda: fichas rojas para los términos negativos.";
+      if(state.op==="resta") msg += " Y como es una RESTA, el segundo polinomio se representa con TODAS sus fichas volteadas (sumar el opuesto).";
+      showFb("bad", msg);
+    }
+  }
+
+  function fmtPoly(a,b,c){
+    const parts=[];
+    if(a!==0) parts.push(coefStr(a,true)+"x<sup>2</sup>");
+    if(b!==0) parts.push(coefStr(b,parts.length===0)+"x");
+    if(c!==0) parts.push(numStr(c,parts.length===0));
+    if(parts.length===0) return "0";
+    return parts.join(" ");
+  }
+  function coefStr(v,first){
+    const s = v<0 ? "− " : (first ? "" : "+ ");
+    const abs = Math.abs(v);
+    return (first && v<0 ? "−" : s) + (abs===1 ? "" : abs);
+  }
+  function numStr(v,first){
+    const s = v<0 ? "− " : (first ? "" : "+ ");
+    return (first && v<0 ? "−" : s) + Math.abs(v);
+  }
+
+  // ---------- Fichas (tamaños adaptables al dispositivo) ----------
+  let U = 34, XL = 112, SNAP = 17;
+  let SIZES = { x2:{w:XL,h:XL}, x:{w:U,h:XL}, "1":{w:U,h:U} };
+  const LABELS = { x2:"x²", x:"x", "1":"1" };
+
+  function applyScale(){
+    const small = window.innerWidth < 520;   // celulares
+    U = small ? 24 : 34;
+    XL = small ? 80 : 112;                   // misma proporción, menor tamaño
+    SNAP = U/2;
+    SIZES = { x2:{w:XL,h:XL}, x:{w:U,h:XL}, "1":{w:U,h:U} };
+    const root = document.documentElement.style;
+    root.setProperty("--u", U+"px");
+    root.setProperty("--xl", XL+"px");
+    board.style.backgroundSize = SNAP+"px "+SNAP+"px";
+    // reubicar fichas existentes dentro de los nuevos límites
+    state.tiles.forEach(t=>{
+      positionTile(t.el, t.base, parseFloat(t.el.style.left), parseFloat(t.el.style.top));
+    });
+  }
+  window.addEventListener("resize", applyScale);
+
+  function createTile(base, sign, x, y){
+    const el = document.createElement("div");
+    el.className = "tile t-" + (base==="x2"?"x2":base==="x"?"x":"1") + (sign<0?" neg":"");
+    el.textContent = (sign<0?"−":"") + LABELS[base];
+    const id = state.nextId++;
+    el.dataset.id = id;
+    positionTile(el, base, x, y);
+    board.appendChild(el);
+    state.tiles.set(id, {base, sign, el});
+    attachDrag(el, false);
+    updateCountLine();
+    return id;
+  }
+
+  function positionTile(el, base, x, y){
+    const s = SIZES[base];
+    const maxX = board.clientWidth - s.w - 2;
+    const maxY = board.clientHeight - s.h - 2;
+    // snap a media unidad para orden visual
+    x = Math.round(Math.min(Math.max(2,x), maxX)/SNAP)*SNAP;
+    y = Math.round(Math.min(Math.max(2,y), maxY)/SNAP)*SNAP;
+    el.style.left = x+"px";
+    el.style.top = y+"px";
+  }
+
+  function clearBoard(){
+    state.tiles.forEach(t=>t.el.remove());
+    state.tiles.clear();
+  }
+
+  function boardCounts(){
+    const c = {x2:{p:0,n:0}, x:{p:0,n:0}, "1":{p:0,n:0}};
+    state.tiles.forEach(t=>{ t.sign>0 ? c[t.base].p++ : c[t.base].n++; });
+    return c;
+  }
+
+  function updateCountLine(){
+    if(!state.showCount){ countLine.classList.remove("show"); return; }
+    const c = boardCounts();
+    countLine.innerHTML =
+      "Conteo → x²: <span style='color:var(--pos-x2)'>+"+c.x2.p+"</span> / <span style='color:var(--neg)'>−"+c.x2.n+"</span>" +
+      " &nbsp;|&nbsp; x: <span style='color:var(--pos-x)'>+"+c.x.p+"</span> / <span style='color:var(--neg)'>−"+c.x.n+"</span>" +
+      " &nbsp;|&nbsp; 1: <span style='color:#b98d10'>+"+c["1"].p+"</span> / <span style='color:var(--neg)'>−"+c["1"].n+"</span>";
+    countLine.classList.add("show");
+  }
+
+  // ---------- Arrastre (pointer events: mouse + táctil) ----------
+  let drag = null; // {el, base, sign, id (o null si nuevo), offX, offY}
+
+  function attachDrag(el, fromTray){
+    el.addEventListener("pointerdown", (e)=>{
+      e.preventDefault();
+      if(fromTray){
+        // crear ficha nueva que sigue al puntero
+        const base = el.dataset.base, sign = parseInt(el.dataset.sign,10);
+        const bRect = board.getBoundingClientRect();
+        const s = SIZES[base];
+        const id = createTile(base, sign, e.clientX-bRect.left-s.w/2, e.clientY-bRect.top-s.h/2);
+        const t = state.tiles.get(id);
+        startDrag(t.el, id, s.w/2, s.h/2, e);
+      } else {
+        const id = parseInt(el.dataset.id,10);
+        const r = el.getBoundingClientRect();
+        startDrag(el, id, e.clientX-r.left, e.clientY-r.top, e);
+      }
+    });
+  }
+
+  function startDrag(el, id, offX, offY, e){
+    drag = {el, id, offX, offY};
+    el.classList.add("dragging");
+    el.setPointerCapture && el.setPointerCapture(e.pointerId);
+  }
+
+  document.addEventListener("pointermove",(e)=>{
+    if(!drag) return;
+    e.preventDefault();
+    const bRect = board.getBoundingClientRect();
+    const t = state.tiles.get(drag.id);
+    if(!t) { drag=null; return; }
+    const x = e.clientX - bRect.left - drag.offX;
+    const y = e.clientY - bRect.top - drag.offY;
+    // durante el arrastre no forzamos snap para que sea fluido
+    drag.el.style.left = x+"px";
+    drag.el.style.top = y+"px";
+  }, {passive:false});
+
+  document.addEventListener("pointerup",(e)=>{
+    if(!drag) return;
+    const el = drag.el, id = drag.id;
+    el.classList.remove("dragging");
+    drag = null;
+    const t = state.tiles.get(id);
+    if(!t) return;
+    const bRect = board.getBoundingClientRect();
+    const inside = e.clientX>bRect.left && e.clientX<bRect.right && e.clientY>bRect.top && e.clientY<bRect.bottom;
+    if(!inside){
+      // soltar fuera del tablero = eliminar
+      t.el.remove();
+      state.tiles.delete(id);
+      updateCountLine();
+      return;
+    }
+    // fijar posición con snap
+    const x = parseFloat(el.style.left), y = parseFloat(el.style.top);
+    positionTile(el, t.base, x, y);
+    // ¿par nulo?
+    tryCancel(id);
+  });
+
+  function tryCancel(id){
+    const t = state.tiles.get(id);
+    if(!t) return;
+    if(state.mode==="guiado" && state.phase===1){
+      // en Fase 1 solo se representa; avisar si intenta superponer opuestas
+      const r1 = rectOf(t);
+      let touching = false;
+      state.tiles.forEach((o,oid)=>{
+        if(oid!==id && o.base===t.base && o.sign!==t.sign && overlapArea(r1, rectOf(o))>0) touching = true;
+      });
+      if(touching){
+        const fl = document.createElement("div");
+        fl.className = "zeroflash";
+        fl.textContent = "Los pares nulos se cancelan en la Fase 2";
+        fl.style.left = Math.max(4, r1.x-40) + "px";
+        fl.style.top = (r1.y - 8) + "px";
+        board.appendChild(fl);
+        setTimeout(()=>fl.remove(), 950);
+      }
+      return;
+    }
+    const r1 = rectOf(t);
+    let best = null, bestArea = 0;
+    state.tiles.forEach((o, oid)=>{
+      if(oid===id) return;
+      if(o.base!==t.base || o.sign===t.sign) return;
+      const a = overlapArea(r1, rectOf(o));
+      if(a>bestArea){ bestArea=a; best=oid; }
+    });
+    if(best!==null){
+      const s = SIZES[t.base];
+      const minArea = s.w*s.h*0.25; // al menos 25% de superposición
+      if(bestArea >= minArea){
+        annihilate(id, best);
+      }
+    }
+  }
+
+  function rectOf(t){
+    return {
+      x:parseFloat(t.el.style.left), y:parseFloat(t.el.style.top),
+      w:SIZES[t.base].w, h:SIZES[t.base].h
+    };
+  }
+  function overlapArea(a,b){
+    const ox = Math.max(0, Math.min(a.x+a.w, b.x+b.w) - Math.max(a.x, b.x));
+    const oy = Math.max(0, Math.min(a.y+a.h, b.y+b.h) - Math.max(a.y, b.y));
+    return ox*oy;
+  }
+
+  function annihilate(id1, id2){
+    const t1 = state.tiles.get(id1), t2 = state.tiles.get(id2);
+    const r = rectOf(t1);
+    // texto flotante "¡Par nulo!"
+    const fl = document.createElement("div");
+    fl.className = "zeroflash";
+    fl.textContent = "¡Par nulo! = 0";
+    fl.style.left = r.x + "px";
+    fl.style.top = (r.y - 8) + "px";
+    board.appendChild(fl);
+    setTimeout(()=>fl.remove(), 950);
+    // animación y eliminación
+    [t1,t2].forEach(t=>t.el.classList.add("poof"));
+    state.tiles.delete(id1);
+    state.tiles.delete(id2);
+    setTimeout(()=>{ t1.el.remove(); t2.el.remove(); updateCountLine(); }, 460);
+    // pequeño premio por usar el mecanismo
+    if(!state.solved){
+      state.score += 2;
+      renderHud();
+    }
+  }
+
+  // ---------- Comprobación ----------
+  function check(){
+    if(!state.ex || state.finished) return;
+    const A = intVal("inA"), B = intVal("inB"), C = intVal("inC");
+    if(A===null || B===null || C===null){
+      showFb("info", "Escribe los tres coeficientes (usa 0 si el término no aparece).");
+      return;
+    }
+    const {ta,tb,tc} = targets();
+    state.tries++;
+    const correcto = (A===ta && B===tb && C===tc);
+    logToSheets({
+      evento: "intento",
+      operacion: state.op,
+      ejercicio: exprText(),
+      respuesta: A+"x² + "+B+"x + "+C,
+      correcto: correcto ? "SÍ" : "NO"
+    });
+    if(correcto){
+      if(!state.solved){
+        state.solved = true;
+        state.hits++;
+        state.streak++;
+        state.score += 10 + (state.streak>=3 ? 5 : 0);
+        if(state.progress[state.level] < GOALS[state.level]){
+          state.progress[state.level]++;
+        }
+      }
+      const done = state.progress[state.level] >= GOALS[state.level];
+      if(done && state.level < 3){
+        state.score += 10;
+        const next = state.level + 1;
+        showFb("ok", "🎉 ¡NIVEL " + state.level + " SUPERADO! Bono +10. Pasas al Nivel " + next + "…");
+        logToSheets({evento:"nivel_superado", operacion:state.op, ejercicio:"Nivel "+state.level, respuesta:"", correcto:"SÍ"});
+        renderHud();
+        setTimeout(()=>{ setLevelUI(next); genExercise(); }, 2200);
+        return;
+      }
+      if(done && state.level === 3){
+        state.score += 20;
+        state.finished = true;
+        renderHud();
+        logToSheets({evento:"JUEGO_COMPLETADO", operacion:"", ejercicio:"Niveles 1-2-3", respuesta:"", correcto:"SÍ"});
+        showWin();
+        return;
+      }
+      showFb("ok", "✅ ¡Correcto! " + plainPoly(ta,tb,tc) +
+        "  (" + state.progress[state.level] + "/" + GOALS[state.level] + " del nivel)" +
+        (state.streak>=3 ? "  🔥 ¡Racha de "+state.streak+"! Bono +5." : ""));
+    } else {
+      state.streak = 0;
+      // pista basada en el tablero
+      const c = boardCounts();
+      const pairs = Math.min(c.x2.p,c.x2.n) + Math.min(c.x.p,c.x.n) + Math.min(c["1"].p,c["1"].n);
+      let hint;
+      if(pairs>0){
+        hint = "Aún tienes pares nulos sin cancelar en el tablero. ¡Júntalos primero y vuelve a contar!";
+      } else {
+        const netA = c.x2.p-c.x2.n, netB = c.x.p-c.x.n, netC = c["1"].p-c["1"].n;
+        if(netA===ta && netB===tb && netC===tc){
+          hint = "Tus fichas están bien simplificadas: revisa cómo pasaste el conteo a los coeficientes (¡cuidado con los signos!).";
+        } else if(state.op==="resta"){
+          hint = "Recuerda: RESTAR es SUMAR EL OPUESTO. Voltea el signo de TODAS las fichas del segundo polinomio antes de juntar.";
+        } else {
+          hint = "Revisa que hayas colocado TODAS las fichas de los dos polinomios antes de simplificar.";
+        }
+      }
+      showFb("bad", "❌ Todavía no. " + hint);
+    }
+    renderHud();
+  }
+
+  function exprText(){
+    const {a1,b1,c1,a2,b2,c2} = state.ex;
+    const sep = state.op==="resta" ? " − " : " + ";
+    return "("+plainPoly(a1,b1,c1)+")"+sep+"("+plainPoly(a2,b2,c2)+")";
+  }
+
+  // ---------- Registro individual en Google Sheets ----------
+  function logToSheets(data){
+    if(!SHEETS_URL || SHEETS_URL.indexOf("http")!==0) return; // no configurado
+    try{
+      const params = new URLSearchParams({
+        estudiante: state.student || "Sin nombre",
+        nivel: String(state.level),
+        modo: state.mode,
+        puntaje: String(state.score),
+        progreso: "N1:"+state.progress[1]+"/"+GOALS[1]+" N2:"+state.progress[2]+"/"+GOALS[2]+" N3:"+state.progress[3]+"/"+GOALS[3],
+        operacion: data.operacion||"",
+        ejercicio: data.ejercicio||"",
+        respuesta: data.respuesta||"",
+        correcto: data.correcto||"",
+        evento: data.evento||""
+      });
+      fetch(SHEETS_URL, {method:"POST", mode:"no-cors", body:params}).catch(()=>{});
+    }catch(err){ /* nunca interrumpir el juego por un fallo de red */ }
+  }
+
+  // ---------- Progresión de niveles ----------
+  function setLevelUI(lvl){
+    state.level = lvl;
+    document.querySelectorAll(".lvl[data-lvl]").forEach(b=>{
+      b.classList.toggle("active", parseInt(b.dataset.lvl,10)===lvl);
+    });
+    updateProgressUI();
+  }
+
+  function updateProgressUI(){
+    document.getElementById("lvlProg").textContent =
+      state.progress[state.level] + "/" + GOALS[state.level];
+    document.querySelectorAll(".lvl[data-lvl]").forEach(b=>{
+      const l = parseInt(b.dataset.lvl,10);
+      const base = b.dataset.base || b.textContent;
+      b.dataset.base = base.replace(" ✔","");
+      b.textContent = b.dataset.base + (state.progress[l]>=GOALS[l] ? " ✔" : "");
+    });
+  }
+
+  function showWin(){
+    document.getElementById("winScore").textContent = state.score;
+    document.getElementById("winHits").textContent = state.hits + " de " + state.tries + " intentos";
+    document.getElementById("winName").textContent = state.student || "¡Campeón/a!";
+    document.getElementById("winModal").classList.add("show");
+  }
+
+  function intVal(id){
+    const v = document.getElementById(id).value.trim();
+    if(v==="") return null;
+    const n = parseInt(v,10);
+    return Number.isNaN(n) ? null : n;
+  }
+
+  function plainPoly(a,b,c){
+    const parts=[];
+    if(a!==0) parts.push((a===1?"":a===-1?"−":(a<0?"−"+Math.abs(a):a))+"x²");
+    if(b!==0) parts.push((parts.length? (b<0?"− ":"+ "):(b<0?"−":"")) + (Math.abs(b)===1?"":Math.abs(b)) + "x");
+    if(c!==0) parts.push((parts.length? (c<0?"− ":"+ "):(c<0?"−":"")) + Math.abs(c));
+    return parts.length? parts.join(" ") : "0";
+  }
+
+  function showFb(kind, msg){ fb.className="feedback "+kind; fb.textContent=msg; }
+  function hideFb(){ fb.className="feedback"; fb.textContent=""; }
+
+  function renderHud(){
+    document.getElementById("score").textContent = state.score;
+    document.getElementById("streak").textContent = state.streak;
+    document.getElementById("hits").textContent = state.hits;
+    document.getElementById("tries").textContent = state.tries;
+  }
+
+  // ---------- Eventos UI ----------
+  document.querySelectorAll(".src").forEach(el=>attachDrag(el, true));
+
+  document.querySelectorAll(".lvl[data-lvl]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      setLevelUI(parseInt(btn.dataset.lvl,10));
+      genExercise();
+    });
+  });
+
+  document.getElementById("btnNew").addEventListener("click", genExercise);
+  document.getElementById("btnVerify").addEventListener("click", verifyRepresentation);
+
+  const mG = document.getElementById("modeGuided"), mF = document.getElementById("modeFree");
+  function setMode(m){
+    state.mode = m;
+    mG.classList.toggle("active", m==="guiado");
+    mF.classList.toggle("active", m==="libre");
+    genExercise();
+  }
+  mG.addEventListener("click", ()=>setMode("guiado"));
+  mF.addEventListener("click", ()=>setMode("libre"));
+  document.getElementById("btnCheck").addEventListener("click", check);
+  document.getElementById("btnCount").addEventListener("click", ()=>{
+    state.showCount = !state.showCount;
+    document.getElementById("btnCount").classList.toggle("active", state.showCount);
+    updateCountLine();
+  });
+
+  const modal = document.getElementById("modal");
+  document.getElementById("btnHelp").addEventListener("click", ()=>modal.classList.add("show"));
+  document.getElementById("btnCloseModal").addEventListener("click", ()=>modal.classList.remove("show"));
+  modal.addEventListener("click", (e)=>{ if(e.target===modal) modal.classList.remove("show"); });
+
+  ["inA","inB","inC"].forEach(id=>{
+    document.getElementById(id).addEventListener("keydown",(e)=>{ if(e.key==="Enter") check(); });
+  });
+
+  // ---------- Registro del estudiante y reinicio ----------
+  const nameModal = document.getElementById("nameModal");
+  const inName = document.getElementById("inName");
+  function startGame(){
+    const n = inName.value.trim();
+    if(n.length < 3){
+      inName.style.borderColor = "var(--bad)";
+      inName.placeholder = "Escribe tu nombre para comenzar";
+      return;
+    }
+    state.student = n;
+    document.getElementById("studentPill").textContent = n.split("—")[0].trim().split(" ")[0];
+    nameModal.classList.remove("show");
+    logToSheets({evento:"inicio_sesion", operacion:"", ejercicio:"", respuesta:"", correcto:""});
+    modal.classList.add("show"); // instrucciones tras registrarse
+  }
+  document.getElementById("btnStart").addEventListener("click", startGame);
+  inName.addEventListener("keydown",(e)=>{ if(e.key==="Enter") startGame(); });
+
+  document.getElementById("btnReplay").addEventListener("click", ()=>{
+    state.progress = {1:0,2:0,3:0};
+    state.finished = false;
+    state.score = 0; state.streak = 0; state.hits = 0; state.tries = 0;
+    document.getElementById("winModal").classList.remove("show");
+    renderHud();
+    setLevelUI(1);
+    genExercise();
+  });
+
+  // ---------- Inicio ----------
+  applyScale();
+  updateProgressUI();
+  genExercise();
+  // primero el registro del estudiante; las instrucciones se muestran después
+})();
+</script>
+</body>
+</html>
