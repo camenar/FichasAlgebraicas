@@ -192,6 +192,13 @@
     background:#f6f8ff;
   }
   .answer input:focus{outline:3px solid var(--orange); outline-offset:1px;}
+  .sign-btn{
+    width:44px; height:44px; font-size:1.3rem; font-weight:bold;
+    background:#fff; color:var(--navy); border:2px solid var(--navy); border-radius:8px;
+    margin-right:2px;
+  }
+  .sign-btn.negativo{background:var(--neg); color:#fff; border-color:var(--neg);}
+  .sign-btn:active{transform:scale(.92);}
   .feedback{
     flex-basis:100%; font-size:.95rem; font-weight:bold; padding:8px 12px; border-radius:8px; display:none;
   }
@@ -343,9 +350,9 @@
   <div class="answer">
     <span class="tag">SOLUCIÓN</span>
     <div class="poly-inputs">
-      <input type="number" id="inA" inputmode="numeric" aria-label="Coeficiente de x al cuadrado"> <span>x²&nbsp;+</span>
-      <input type="number" id="inB" inputmode="numeric" aria-label="Coeficiente de x"> <span>x&nbsp;+</span>
-      <input type="number" id="inC" inputmode="numeric" aria-label="Término independiente">
+      <button class="sign-btn" data-for="inA" aria-label="Cambiar signo de x²" title="Cambiar signo">±</button><input type="text" id="inA" inputmode="numeric" autocomplete="off" aria-label="Coeficiente de x al cuadrado"> <span>x²&nbsp;+</span>
+      <button class="sign-btn" data-for="inB" aria-label="Cambiar signo de x" title="Cambiar signo">±</button><input type="text" id="inB" inputmode="numeric" autocomplete="off" aria-label="Coeficiente de x"> <span>x&nbsp;+</span>
+      <button class="sign-btn" data-for="inC" aria-label="Cambiar signo del término independiente" title="Cambiar signo">±</button><input type="text" id="inC" inputmode="numeric" autocomplete="off" aria-label="Término independiente">
     </div>
     <button class="btn-orange" id="btnCheck">Comprobar</button>
     <div class="feedback" id="fb"></div>
@@ -381,7 +388,7 @@
     <ol>
       <li><strong>Fase 1 · Representa</strong> los dos polinomios colocando en el tablero las fichas de cada término (las rojas para los términos negativos). En <strong>modo guiado</strong>, pulsa <em>Verificar representación</em>: si es correcta ganas +5 puntos y pasas a la Fase 2.</li>
       <li><strong>Fase 2 · Forma pares nulos:</strong> arrastra una ficha sobre su opuesta (por ejemplo, x² sobre −x²). Ambas desaparecen porque x² + (−x²) = 0.</li>
-      <li><strong>Cuenta</strong> las fichas que quedan y escribe el polinomio solución abajo. Si un término no aparece, escribe 0.</li>
+      <li><strong>Cuenta</strong> las fichas que quedan y escribe el polinomio solución abajo. Si un término no aparece, escribe 0. Para los coeficientes negativos usa el botón <strong>±</strong> junto a cada casilla (se pone rojo cuando el signo es negativo).</li>
       <li>Pulsa <strong>Comprobar</strong>. Ganas puntos por cada acierto y por cada par nulo cancelado. 🔥</li>
     </ol>
     <h3>Los dos modos</h3>
@@ -491,7 +498,7 @@
     exprBox.innerHTML = "( " + fmtPoly(a1,b1,c1) + " )" + sep + "( " + fmtPoly(a2,b2,c2) + " )";
     document.getElementById("opTag").textContent = state.op==="resta" ? "POLINOMIOS A RESTAR" : "POLINOMIOS A SUMAR";
     clearBoard();
-    ["inA","inB","inC"].forEach(id=>document.getElementById(id).value="");
+    ["inA","inB","inC"].forEach(id=>{ document.getElementById(id).value=""; syncSignBtn(id); });
     hideFb();
     updateCountLine();
     updateProgressUI();
@@ -981,7 +988,29 @@
   modal.addEventListener("click", (e)=>{ if(e.target===modal) modal.classList.remove("show"); });
 
   ["inA","inB","inC"].forEach(id=>{
-    document.getElementById(id).addEventListener("keydown",(e)=>{ if(e.key==="Enter") check(); });
+    const inp = document.getElementById(id);
+    inp.addEventListener("keydown",(e)=>{ if(e.key==="Enter") check(); });
+    // Solo dígitos y un signo menos inicial (los celulares no traen '-' en el teclado numérico)
+    inp.addEventListener("input", ()=>{
+      let v = inp.value.replace(/[^0-9-]/g,"");
+      v = (v.startsWith("-") ? "-" : "") + v.replace(/-/g,"");
+      inp.value = v;
+      syncSignBtn(id);
+    });
+  });
+
+  // Botones ± : alternan el signo del coeficiente con un toque
+  function syncSignBtn(id){
+    const btn = document.querySelector('.sign-btn[data-for="'+id+'"]');
+    btn.classList.toggle("negativo", document.getElementById(id).value.startsWith("-"));
+  }
+  document.querySelectorAll(".sign-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const inp = document.getElementById(btn.dataset.for);
+      inp.value = inp.value.startsWith("-") ? inp.value.slice(1) : "-"+inp.value;
+      syncSignBtn(btn.dataset.for);
+      inp.focus();
+    });
   });
 
   // ---------- Registro del estudiante y reinicio ----------
