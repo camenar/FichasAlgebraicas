@@ -275,6 +275,7 @@
   <div class="hud">
     <div class="pill">👤 <span id="studentPill">—</span></div>
     <div class="pill">⭐ Puntos: <span id="score">0</span></div>
+    <div class="pill">📊 Nota: <span id="notaPill">1.0</span></div>
     <div class="pill">🎯 Nivel: <span id="lvlProg">0/3</span></div>
     <div class="pill">🔥 Racha: <span id="streak">0</span></div>
     <div class="pill">✅ <span id="hits">0</span>/<span id="tries">0</span></div>
@@ -416,6 +417,7 @@
     <p style="font-size:1.05rem; margin:8px 0;"><strong id="winName"></strong></p>
     <p>Superaste los tres niveles de fichas algebraicas.</p>
     <p style="font-size:1.6rem; font-weight:bold; color:var(--orange); margin:12px 0;">⭐ <span id="winScore">0</span> puntos</p>
+    <p style="font-size:1.3rem; font-weight:bold; color:var(--ok); margin:4px 0;">📊 Nota: <span id="winNota">5.0</span></p>
     <p style="color:#555;">Aciertos: <span id="winHits"></span></p>
     <p style="font-size:.85rem; color:#7a819a; margin-top:8px;">Tu resultado quedó registrado. ¡Muéstraselo a tu profesor!</p>
     <div class="close-row" style="text-align:center;">
@@ -434,7 +436,7 @@
   // (Implementar > Nueva implementación > App web > Cualquier usuario)
   // Si se deja vacía, el juego funciona igual pero no guarda registros.
   // ============================================================
-  const SHEETS_URL = "";
+  const SHEETS_URL = "https://script.google.com/macros/s/AKfycbxf2TJS8rvtUBTeHhiXx8XCCTGO0rxzM7OP_rX76acmClhT6tpMfqsnKHf3TEJBQ_fK/exec";
 
   const GOALS = {1:3, 2:4, 3:5}; // ejercicios correctos para superar cada nivel
 
@@ -871,6 +873,7 @@
         nivel: String(state.level),
         modo: state.mode,
         puntaje: String(state.score),
+        nota: computeNota(),
         progreso: "N1:"+state.progress[1]+"/"+GOALS[1]+" N2:"+state.progress[2]+"/"+GOALS[2]+" N3:"+state.progress[3]+"/"+GOALS[3],
         operacion: data.operacion||"",
         ejercicio: data.ejercicio||"",
@@ -891,9 +894,17 @@
     updateProgressUI();
   }
 
+  // ---------- Nota (escala 1.0 a 5.0) ----------
+  function computeNota(){
+    const done = Math.min(state.progress[1],GOALS[1]) + Math.min(state.progress[2],GOALS[2]) + Math.min(state.progress[3],GOALS[3]);
+    const total = GOALS[1]+GOALS[2]+GOALS[3]; // 12
+    return (1 + 4*done/total).toFixed(1);
+  }
+
   function updateProgressUI(){
     document.getElementById("lvlProg").textContent =
       state.progress[state.level] + "/" + GOALS[state.level];
+    document.getElementById("notaPill").textContent = computeNota();
     document.querySelectorAll(".lvl[data-lvl]").forEach(b=>{
       const l = parseInt(b.dataset.lvl,10);
       const base = b.dataset.base || b.textContent;
@@ -904,6 +915,7 @@
 
   function showWin(){
     document.getElementById("winScore").textContent = state.score;
+    document.getElementById("winNota").textContent = computeNota();
     document.getElementById("winHits").textContent = state.hits + " de " + state.tries + " intentos";
     document.getElementById("winName").textContent = state.student || "¡Campeón/a!";
     document.getElementById("winModal").classList.add("show");
