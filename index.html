@@ -444,6 +444,7 @@
   // Si se deja vacía, el juego funciona igual pero no guarda registros.
   // ============================================================
   const SHEETS_URL = "https://script.google.com/macros/s/AKfycbxf2TJS8rvtUBTeHhiXx8XCCTGO0rxzM7OP_rX76acmClhT6tpMfqsnKHf3TEJBQ_fK/exec";
+  const ID_SISTEMA = new URLSearchParams(location.search).get('u') || '';
 
   const GOALS = {1:3, 2:4, 3:5}; // ejercicios correctos para superar cada nivel
 
@@ -877,6 +878,7 @@
     try{
       const params = new URLSearchParams({
         estudiante: state.student || "Sin nombre",
+        id_sistema: ID_SISTEMA,
         nivel: String(state.level),
         modo: state.mode,
         puntaje: String(state.score),
